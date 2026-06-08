@@ -150,7 +150,8 @@ public class LamportNode implements AutoCloseable {
     /**
      * Entrega mensagens quando:
      * 1. Estao no topo da fila (menor timestamp total).
-     * 2. Todos os OUTROS processos enviaram msg/ACK com relogio > timestamp da mensagem.
+     * 2. Para o remetente: ja recebemos msg/ACK dele com relogio >= timestamp.
+     * 3. Para os demais: ja recebemos msg/ACK com relogio > timestamp.
      */
     private void tryDeliver() {
         while (!pendingQueue.isEmpty()) {
@@ -165,13 +166,18 @@ public class LamportNode implements AutoCloseable {
 
     private boolean canDeliver(PendingMessage message) {
         long messageClock = message.timestamp().clock();
+        int messageSender = message.senderId();
 
         for (Integer otherId : allProcessIds) {
             if (otherId == processId) {
                 continue;
             }
             long lastSeen = lastSeenClockFromProcess.getOrDefault(otherId, 0L);
-            if (lastSeen <= messageClock) {
+            if (otherId == messageSender) {
+                if (lastSeen < messageClock) {
+                    return false;
+                }
+            } else if (lastSeen <= messageClock) {
                 return false;
             }
         }
