@@ -26,18 +26,36 @@ public class MessageSender implements AutoCloseable {
         }
     }
 
+    public void connectAllAsync() {
+        for (PeerInfo peer : peers.values()) {
+            Thread thread = new Thread(() -> connect(peer), "connect-P" + peer.processId());
+            thread.setDaemon(true);
+            thread.start();
+        }
+    }
+
+    public boolean isConnected(int processId) {
+        PrintWriter writer = writers.get(processId);
+        return writer != null && !writer.checkError();
+    }
+
     private void connect(PeerInfo peer) {
-        int attempts = 0;
-        while (attempts < 30) {
+        int maxAttempts = 60;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
+                log("[REDE] Tentativa " + attempt + "/" + maxAttempts + " -> " + peer + "...");
                 Socket socket = new Socket(peer.host(), peer.port());
                 socket.setTcpNoDelay(true);
                 PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
                 writers.put(peer.processId(), writer);
-                System.out.println("[REDE] Conectado a " + peer);
+                log("[REDE] Conectado a " + peer);
                 return;
             } catch (IOException e) {
-                attempts++;
+                if (attempt == maxAttempts) {
+                    log("[REDE] Falha ao conectar em " + peer + " apos " + maxAttempts + " tentativas.");
+                    log("[REDE] Verifique IP, porta, firewall e se o outro processo ja esta rodando.");
+                    return;
+                }
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException ie) {
@@ -46,7 +64,11 @@ public class MessageSender implements AutoCloseable {
                 }
             }
         }
-        System.err.println("[REDE] Falha ao conectar em " + peer);
+    }
+
+    private static void log(String message) {
+        System.out.println(message);
+        System.out.flush();
     }
 
     public synchronized void sendTo(int processId, NetworkMessage message) {

@@ -36,6 +36,9 @@ public class LamportApp {
     }
 
     private static void run(Config config) throws IOException {
+        printBanner(config);
+        System.out.flush();
+
         LamportNode node = new LamportNode(config.processId(), config.port(), config.peers());
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -45,13 +48,14 @@ public class LamportApp {
             }
         }));
 
-        printBanner(config);
         readCommands(node);
     }
 
     private static void readCommands(LamportNode node) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         System.out.println("Digite 'help' para ver os comandos disponiveis.");
+        System.out.println("Use 'status' para verificar se a conexao com o outro computador esta ativa.");
+        System.out.flush();
 
         String line;
         while ((line = reader.readLine()) != null) {
@@ -69,7 +73,12 @@ public class LamportApp {
                 continue;
             }
             if (line.equalsIgnoreCase("state")) {
+                node.printConnectionStatus();
                 node.printState();
+                continue;
+            }
+            if (line.equalsIgnoreCase("status")) {
+                node.printConnectionStatus();
                 continue;
             }
             if (line.startsWith("send ")) {
@@ -97,6 +106,7 @@ public class LamportApp {
         System.out.println("  send <texto>   Envia mensagem (multicast totalmente ordenado)");
         System.out.println("  event <texto>  Evento interno local (Regra 1 do relogio)");
         System.out.println("  state          Mostra relogio, fila e timestamps recebidos");
+        System.out.println("  status         Mostra se a conexao com o peer esta ativa");
         System.out.println("  help           Exibe esta ajuda");
         System.out.println("  quit           Encerra o processo");
     }

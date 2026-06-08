@@ -45,10 +45,22 @@ public class LamportNode implements AutoCloseable {
 
         this.server = new MessageServer(port, this::handleIncoming);
         this.server.start();
-        this.sender.connectAll();
 
-        System.out.println("[P" + processId + "] Iniciado na porta " + port);
-        System.out.println("[P" + processId + "] Processos no grupo: " + allProcessIds);
+        log("Servidor escutando na porta " + port);
+        log("Processos no grupo: " + allProcessIds);
+        log("Conectando ao(s) peer(s) em segundo plano...");
+
+        this.sender.connectAllAsync();
+    }
+
+    public void printConnectionStatus() {
+        for (Integer peerId : allProcessIds) {
+            if (peerId == processId) {
+                continue;
+            }
+            String status = sender.isConnected(peerId) ? "conectado" : "aguardando/desconectado";
+            log("P" + peerId + ": " + status);
+        }
     }
 
     /** Envia mensagem de aplicacao com multicast totalmente ordenado. */
@@ -177,6 +189,7 @@ public class LamportNode implements AutoCloseable {
 
     private void log(String text) {
         System.out.println("[P" + processId + "] " + text);
+        System.out.flush();
     }
 
     @Override
